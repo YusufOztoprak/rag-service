@@ -1,98 +1,157 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# RAG Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-style **Retrieval-Augmented Generation (RAG)** API built with NestJS, PostgreSQL + pgvector, and OpenAI. Upload-ready document text is chunked, embedded, and stored as vectors; incoming questions are embedded, matched against the most semantically similar chunks, and answered by an LLM **grounded only in the retrieved context** to reduce hallucination.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+🔗 **Live demo:** https://rag-service-q8p3.onrender.com
+*(Hosted on Render's free tier — the first request may take ~50s while the instance wakes up.)*
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## What it does
 
-## Project setup
+RAG lets a language model answer questions using **your own documents** instead of relying solely on its training data. This service implements the full pipeline end to end.
 
-```bash
-$ npm install
+**1. Indexing (when content is added)**
+```
+text → split into overlapping chunks → embed each chunk (OpenAI) → store chunk + vector in pgvector
 ```
 
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+**2. Querying (when a question is asked)**
+```
+question → embed → find nearest chunks in pgvector (cosine distance) → build context → LLM answers using only that context
 ```
 
-## Run tests
+The LLM is explicitly instructed to answer **only from the retrieved context** and to say it doesn't know when the answer isn't present — this is what keeps responses grounded and reduces hallucination.
 
-```bash
-# unit tests
-$ npm run test
+---
 
-# e2e tests
-$ npm run test:e2e
+## Tech stack
 
-# test coverage
-$ npm run test:cov
+| Layer | Choice |
+|-------|--------|
+| Framework | NestJS (TypeScript) |
+| Database | PostgreSQL 16 + [pgvector](https://github.com/pgvector/pgvector) |
+| Embeddings | OpenAI `text-embedding-3-small` (1536 dimensions) |
+| LLM | OpenAI `gpt-4o-mini` |
+| Containerization | Docker / docker-compose (local PostgreSQL) |
+| Deployment | Render (Web Service + managed PostgreSQL) |
+
+---
+
+## Architecture
+
+The codebase is organized into focused NestJS modules with clear separation of concerns:
+
+```
+src/
+├── database/      # pgvector connection pool (pg) provided globally
+├── embeddings/    # OpenAI embedding wrapper (text → 1536-dim vector)
+├── llm/           # OpenAI chat wrapper (prompt → grounded answer)
+├── documents/     # chunking logic + ingestion (text → chunks → vectors)
+└── query/         # similarity search + RAG ask flow
 ```
 
-## Deployment
+**Key design decisions**
+- **Single store:** vectors live in PostgreSQL via pgvector rather than a separate vector DB — one transactional store, simpler ops, and the relational features stay available.
+- **Chunking with overlap:** long text is split into fixed-size chunks with overlap so a relevant passage is never lost on a chunk boundary, and each chunk represents one focused topic for more precise retrieval.
+- **Parameterized SQL:** all queries use bound parameters (`$1`, `$2`) to prevent SQL injection.
+- **Vector format conversion:** OpenAI returns a JS `number[]`, which is converted to pgvector's `[..]` string format before insertion.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+---
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## API
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+### `POST /documents/test`
+Ingests a built-in sample document (chunks → embeddings → stored). Returns the created document id and chunk count.
+```json
+{ "documentId": 1, "chunkCount": 1 }
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### `GET /query/search?q=<question>`
+Returns the most similar chunks to the question, with their cosine distance.
 
-## Resources
+### `GET /query/ask?q=<question>`
+Full RAG flow: retrieves relevant chunks and returns an LLM answer grounded in them.
+```json
+{
+  "question": "what is pgvector and how does it relate to RAG",
+  "answer": "pgvector is a PostgreSQL extension that stores embeddings and supports similarity search. It relates to RAG by ..."
+}
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Database schema
 
-## Support
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    filename TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-## Stay in touch
+CREATE TABLE chunks (
+    id SERIAL PRIMARY KEY,
+    document_id INT REFERENCES documents(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    embedding VECTOR(1536) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+The document metadata and its chunks are separated: a document is embedded as its chunks, not as a whole, so the `embedding` column lives on `chunks`. `ON DELETE CASCADE` removes a document's chunks when the document is deleted.
+
+---
+
+## Running locally
+
+**Prerequisites:** Node.js 18+, Docker, an OpenAI API key.
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Start PostgreSQL + pgvector
+docker compose up -d
+
+# 3. Run the schema migration
+docker exec -i rag-postgres psql -U rag_user -d rag_db < migrations/001_init.sql
+
+# 4. Create a .env file
+#    DATABASE_URL=postgresql://rag_user:rag_password@localhost:5433/rag_db
+#    OPENAI_API_KEY=your_key_here
+
+# 5. Start in watch mode
+npm run start:dev
+```
+
+Then ingest the sample and ask a question:
+```bash
+curl -X POST http://localhost:3000/documents/test
+curl "http://localhost:3000/query/ask?q=what is pgvector"
+```
+
+## Tests
+
+```bash
+npm run test
+```
+Unit tests cover the chunking logic (chunk sizing, overlap behavior, guard clauses, empty input).
+
+---
+
+## Roadmap
+
+- [ ] **PDF upload** — accept real PDF files (multer + pdf-parse) instead of the built-in sample text
+- [ ] HNSW index on the `embedding` column for faster approximate nearest-neighbor search at scale
+- [ ] System prompt + citations (return which chunks the answer was based on)
+- [ ] Multi-document / multi-collection support with auth
+- [ ] Dependency audit and hardening (`npm audit`)
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT
