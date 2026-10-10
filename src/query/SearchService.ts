@@ -39,7 +39,7 @@ export class SearchService {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access
-    const context = chunks.map((c) => c.content).join('\n\n');
+    const context = relevant.map((c) => c.content).join('\n\n');
 
     const prompt = `Answer the question based only on the following context.If the answer is not in the context, say you don't know.
 
