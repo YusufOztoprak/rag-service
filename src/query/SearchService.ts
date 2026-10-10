@@ -32,6 +32,13 @@ export class SearchService {
     const chunks = await this.search(question, 3);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access
+    const relevant = chunks.filter((c) => c.distance < 0.8);
+
+    if (relevant.length === 0) {
+      return "I don't know - no relevant documents found.";
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access
     const context = chunks.map((c) => c.content).join('\n\n');
 
     const prompt = `Answer the question based only on the following context.If the answer is not in the context, say you don't know.
