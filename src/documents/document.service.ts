@@ -1,14 +1,17 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
-import { EmbeddingService } from '../embeddings/embedding.service';
+import {
+  type EmbeddingProvider,
+  EMBEDDING_PROVIDER,
+} from '../embeddings/embedding-provider';
 import { chunkText } from './chunking';
 
 @Injectable()
 export class DocumentService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
-    private readonly embeddingService: EmbeddingService,
+    @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
   ) {}
 
   async ingest(
@@ -28,7 +31,7 @@ export class DocumentService {
 
     // 3. For each chunk, generate embedding and insert into chunks table
     for (const chunk of chunks) {
-      const embedding = await this.embeddingService.embed(chunk);
+      const embedding = await this.embedder.embed(chunk);
       const vectorString = `[${embedding.join(',')}]`;
 
       await this.pool.query(

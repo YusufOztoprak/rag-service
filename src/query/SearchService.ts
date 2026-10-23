@@ -1,19 +1,22 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../database/database.module';
-import { EmbeddingService } from '../embeddings/embedding.service';
+import {
+  type EmbeddingProvider,
+  EMBEDDING_PROVIDER,
+} from '../embeddings/embedding-provider';
 import { LLMService } from '../llm/llm.service';
 
 @Injectable()
 export class SearchService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
-    private readonly embeddingService: EmbeddingService,
+    @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
     private readonly llmService: LLMService,
   ) {}
 
   async search(question: string, limit: number) {
-    const embedding = await this.embeddingService.embed(question);
+    const embedding = await this.embedder.embed(question);
     const vectorString = `[${embedding.join(',')}]`;
 
     const result = await this.pool.query(
