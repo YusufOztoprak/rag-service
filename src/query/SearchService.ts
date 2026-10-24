@@ -6,6 +6,7 @@ import {
   EMBEDDING_PROVIDER,
 } from '../embeddings/embedding-provider';
 import { LLMService } from '../llm/llm.service';
+import { PromptBuilder } from '../llm/prompt.builder';
 
 @Injectable()
 export class SearchService {
@@ -41,15 +42,13 @@ export class SearchService {
       return "I don't know - no relevant documents found.";
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access
-    const context = relevant.map((c) => c.content).join('\n\n');
-
-    const prompt = `Answer the question based only on the following context.If the answer is not in the context, say you don't know.
-
-    Context: 
-    ${context}
-
-    Question: ${question}`;
+    const prompt = new PromptBuilder()
+      .withSystem(
+        "Answer the question based only on the following context. If the answer is not in the context, say you don't know.",
+      )
+      .withContext(relevant.map((c) => c.content))
+      .withQuestion(question)
+      .build();
 
     const answer = await this.llmService.generate(prompt);
 
