@@ -51,7 +51,6 @@ export class SearchService {
       .build();
 
     const answer = await this.llmService.generate(prompt);
-
-    return answer;
+    return answer.text;
   }
 }

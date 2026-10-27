@@ -19,7 +19,7 @@ export class LLMService {
     });
   }
 
-  async generate(prompt: string): Promise<string> {
+  async generate(prompt: string): Promise<LLMResult> {
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
