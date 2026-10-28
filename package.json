@@ -26,6 +26,7 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "fast-xml-parser": "^5.11.2",
     "nestjs-pino": "^5.2.0",
     "openai": "^6.42.0",
     "pg": "^8.21.0",
