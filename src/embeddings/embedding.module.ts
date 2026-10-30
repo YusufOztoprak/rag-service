@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { EmbeddingProvider, EMBEDDING_PROVIDER } from './embedding-provider';
 import { FakeEmbeddingProvider } from './fake-embedding.provider';
 import { OpenAIEmbeddingProvider } from './openai-embedding.provider';
+import { CachingEmbeddingProvider } from './caching-embedding.provider';
+
 
 @Module({
   providers: [
@@ -10,12 +12,14 @@ import { OpenAIEmbeddingProvider } from './openai-embedding.provider';
       provide: EMBEDDING_PROVIDER,
       inject: [ConfigService],
       useFactory: (config: ConfigService): EmbeddingProvider => {
-        if (config.get<string>('EMBEDDING_PROVIDER') === 'fake') {
-          return new FakeEmbeddingProvider();
-        }
-        return new OpenAIEmbeddingProvider(
-          config.getOrThrow<string>('OPENAI_API_KEY'),
-        );
+        const base: EmbeddingProvider =
+          config.get<string>('EMBEDDING_PROVIDER') === 'fake'
+            ? new FakeEmbeddingProvider()
+            : new OpenAIEmbeddingProvider(
+                config.getOrThrow<string>('OPENAI_API_KEY'),
+              );
+
+        return new CachingEmbeddingProvider(base);
       },
     },
   ],
