@@ -3,6 +3,7 @@ import { CachingEmbeddingProvider } from './caching-embedding.provider';
 
 class CountingProvider implements EmbeddingProvider {
   calls = 0;
+  readonly model = 'counting';
 
   async embed(text: string): Promise<number[]> {
     this.calls++;
@@ -30,5 +31,10 @@ describe('CachingEmbeddingProvider', () => {
     await cached.embed('ibuprofen');
 
     expect(inner.calls).toBe(2);
+  });
+
+  it('reports the model of the wrapped provider', () => {
+    const cached = new CachingEmbeddingProvider(new CountingProvider());
+    expect(cached.model).toBe('counting');
   });
 });

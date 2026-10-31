@@ -23,9 +23,10 @@ export class SearchService {
     const result = await this.pool.query(
       `SELECT id, content, embedding <=> $1 AS distance
        FROM chunks
+       WHERE embedding_model = $3
        ORDER BY embedding <=> $1 ASC
-           LIMIT $2`,
-      [vectorString, limit],
+         LIMIT $2`,
+      [vectorString, limit, this.embedder.model],
     );
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return

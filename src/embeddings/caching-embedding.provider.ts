@@ -14,4 +14,8 @@ export class CachingEmbeddingProvider implements EmbeddingProvider {
     this.cache.set(text, vector);
     return vector;
   }
+
+  get model(): string {
+    return this.inner.model;
+  }
 }

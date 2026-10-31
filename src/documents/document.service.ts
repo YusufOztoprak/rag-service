@@ -35,8 +35,8 @@ export class DocumentService {
       const vectorString = `[${embedding.join(',')}]`;
 
       await this.pool.query(
-        'INSERT INTO chunks (document_id, content, embedding) VALUES ($1, $2, $3)',
-        [documentId, chunk, vectorString],
+        'INSERT INTO chunks (document_id, content, embedding, embedding_model) VALUES ($1, $2, $3, $4)',
+        [documentId, chunk, vectorString,this.embedder.model],
       );
     }
 
