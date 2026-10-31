@@ -12,12 +12,23 @@ export const PG_POOL = 'PG_POOL';
       provide: PG_POOL,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        return new Pool({
+        const pool = new Pool({
           connectionString: configService.get<string>('DATABASE_URL'),
+          // Close idle connections before Neon suspends and drops them
+          idleTimeoutMillis: 30_000,
+          connectionTimeoutMillis: 10_000,
+          keepAlive: true,
         });
+
+        // An idle connection dropped by the server must not crash the app
+        pool.on('error', (err) => {
+          console.error('Idle database connection error:', err.message);
+        });
+        return pool;
+        },
       },
-    },
-  ],
-  exports: [PG_POOL],
-})
+    ],
+    exports: [PG_POOL],
+  })
+
 export class DatabaseModule {}
